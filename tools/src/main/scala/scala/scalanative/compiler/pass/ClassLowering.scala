@@ -44,5 +44,4 @@ class ClassLowering(implicit top: Top, fresh: Fresh) extends Pass {
 
 object ClassLowering extends PassCompanion {
   def apply(ctx: Ctx) = new ClassLowering()(ctx.top, ctx.fresh)
-
 }

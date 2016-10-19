@@ -6,27 +6,28 @@ import nir._, Inst.Let
 
 /** Translates high-level casts to corresponding low-level instructions. */
 class AsLowering extends Pass {
+  private val conv: PartialFunction[(Type, Type), Conv] = {
+    case (Type.I(w1), Type.I(w2)) if w1 > w2 => Conv.Sext
+    case (Type.I(w1), Type.I(w2)) if w1 < w2 => Conv.Trunc
+    case (Type.I(_), Type.F(_))              => Conv.Fptosi
+    case (Type.F(_), Type.I(_))              => Conv.Sitofp
+    case (Type.F(w1), Type.F(w2)) if w1 > w2 => Conv.Fpext
+    case (Type.F(w1), Type.F(w2)) if w1 < w2 => Conv.Fptrunc
+    case (Type.Ptr, _: Type.RefKind)         => Conv.Bitcast
+    case (_: Type.RefKind, Type.Ptr)         => Conv.Bitcast
+  }
+
   override def preInst = {
     case Let(n, Op.As(ty1, Of(v, ty2))) if ty1 == ty2 =>
       Seq(Let(n, Op.Copy(v)))
+
     case Let(n, Op.As(_: Type.RefKind, Of(v, _: Type.RefKind))) =>
       Seq(Let(n, Op.Copy(v)))
-    case Let(n, Op.As(to @ Type.I(w1), Of(v, Type.I(w2)))) if w1 > w2 =>
-      Seq(Let(n, Op.Conv(Conv.Sext, to, v)))
-    case Let(n, Op.As(to @ Type.I(w1), Of(v, Type.I(w2)))) if w1 < w2 =>
-      Seq(Let(n, Op.Conv(Conv.Trunc, to, v)))
-    case Let(n, Op.As(to @ Type.I(_), Of(v, Type.F(_)))) =>
-      Seq(Let(n, Op.Conv(Conv.Fptosi, to, v)))
-    case Let(n, Op.As(to @ Type.F(_), Of(v, Type.I(_)))) =>
-      Seq(Let(n, Op.Conv(Conv.Sitofp, to, v)))
-    case Let(n, Op.As(to @ Type.F(w1), Of(v, Type.F(w2)))) if w1 > w2 =>
-      Seq(Let(n, Op.Conv(Conv.Fpext, to, v)))
-    case Let(n, Op.As(to @ Type.F(w1), Of(v, Type.F(w2)))) if w1 < w2 =>
-      Seq(Let(n, Op.Conv(Conv.Fptrunc, to, v)))
-    case Let(n, Op.As(Type.Ptr, Of(v, _: Type.RefKind))) =>
-      Seq(Let(n, Op.Conv(Conv.Bitcast, Type.Ptr, v)))
-    case Let(n, Op.As(to @ (_: Type.RefKind), Of(v, Type.Ptr))) =>
-      Seq(Let(n, Op.Conv(Conv.Bitcast, to, v)))
+
+    case Let(n, Op.As(toty, Of(v, fromty)))
+        if conv.isDefinedAt((toty, fromty)) =>
+      Seq(Let(n, Op.Conv(conv((toty, fromty)), toty, v)))
+
     case inst @ Let(n, Op.As(to, Of(v, from))) =>
       util.unsupported(inst)
   }

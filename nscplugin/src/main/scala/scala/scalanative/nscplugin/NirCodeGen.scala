@@ -383,7 +383,7 @@ abstract class NirCodeGen
         else Some(genType(owner.tpe))
       val retty =
         if (sym.isClassConstructor) Type.Unit
-        else genType(sym.tpe.resultType, retty = true)
+        else genType(sym.tpe.resultType)
 
       Type.Function((selfty ++: paramtys).map(Arg(_)), retty)
     }
@@ -609,7 +609,7 @@ abstract class NirCodeGen
         case UnitTag =>
           Val.Unit
         case NullTag =>
-          Val.Zero(Rt.Object)
+          Val.Zero(Lib.Object)
         case BooleanTag =>
           if (value.booleanValue) Val.True else Val.False
         case ByteTag =>
@@ -697,7 +697,7 @@ abstract class NirCodeGen
       val normaln, excn = fresh()
 
       val res  = Val.Local(fresh(), retty)
-      val exc  = Val.Local(fresh(), Rt.Object)
+      val exc  = Val.Local(fresh(), Lib.Object)
       val try_ = focus.withTry(normaln, excn)
 
       merged(retty, try_, Seq(
@@ -1115,8 +1115,8 @@ abstract class NirCodeGen
               genClassEquality(left, right, ref = true, negated = false, focus)
             case NI =>
               genClassEquality(left, right, ref = true, negated = true, focus)
-
-            case _ => abort("Unknown reference type operation code: " + code)
+            case _ =>
+              abort("Unknown reference type operation code: " + code)
           }
 
         case Type.Ptr =>
@@ -1125,6 +1125,8 @@ abstract class NirCodeGen
               genBinaryOp(Op.Comp(Comp.Ieq, _, _, _), left, right, opty, focus)
             case NE | NI =>
               genBinaryOp(Op.Comp(Comp.Ine, _, _, _), left, right, opty, focus)
+            case _ =>
+              abort("Unknown pointer type operation code: " + code)
           }
 
         case ty =>
@@ -1158,13 +1160,13 @@ abstract class NirCodeGen
       if (ref) {
         val right = genExpr(rightp, left)
         val comp  = if (negated) Comp.Ine else Comp.Ieq
-        right withOp Op.Comp(comp, Rt.Object, left.value, right.value)
+        right withOp Op.Comp(comp, Lib.Object, left.value, right.value)
       } else {
-        val isnull = left withOp Op.Comp(Comp.Ieq, Rt.Object, left.value, Val.Zero(Rt.Object))
+        val isnull = left withOp Op.Comp(Comp.Ieq, Lib.Object, left.value, Val.Zero(Lib.Object))
         val cond = ValTree(isnull.value)
         val thenp = ContTree { focus =>
           val right = genExpr(rightp, focus)
-          right withOp Op.Comp(Comp.Ieq, Rt.Object, right.value, Val.Zero(Rt.Object))
+          right withOp Op.Comp(Comp.Ieq, Lib.Object, right.value, Val.Zero(Lib.Object))
         }
         val elsep = ContTree { focus =>
           genMethodCall(NObjectEqualsMethod, statically = false,
@@ -1191,7 +1193,7 @@ abstract class NirCodeGen
       case (nir.Type.F(lwidth), nir.Type.F(rwidth)) =>
         if (lwidth >= rwidth) lty else rty
       case (_: nir.Type.RefKind, _: nir.Type.RefKind) =>
-        Rt.Object
+        Lib.Object
       case (ty1, ty2) if ty1 == ty2 =>
         ty1
       case _ =>
@@ -1295,7 +1297,7 @@ abstract class NirCodeGen
       val Apply(Select(ptrp, _), argsp :+ ctp) = app
 
       val sym = extractClassFromImplicitClassTag(ctp)
-      val ty  = genTypeSym(sym, boxUnsigned = false)
+      val ty  = genTypeSym(sym, box = false)
       val ptr = genExpr(ptrp, focus)
 
       (code, argsp) match {
@@ -1623,13 +1625,14 @@ abstract class NirCodeGen
     def genApplyTypeApply(app: Apply, focus: Focus) = {
       val Apply(TypeApply(fun @ Select(receiverp, _), targs), _) = app
 
-      val ty  = genType(targs.head.tpe)
+      val ty = genType(targs.head.tpe)
       val rec = genExpr(receiverp, focus)
-      rec.withOp(
-          fun.symbol match {
+      val op = fun.symbol match {
         case Object_isInstanceOf => Op.Is(ty, rec.value)
         case Object_asInstanceOf => Op.As(ty, rec.value)
-      })
+      }
+
+      rec.withOp(op)
     }
 
     def genApplyNew(app: Apply, focus: Focus) = {

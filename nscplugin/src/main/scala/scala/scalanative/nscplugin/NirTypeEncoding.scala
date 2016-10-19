@@ -31,38 +31,55 @@ trait NirTypeEncoding { self: NirCodeGen =>
     case tpe: ErasedValueType     => (tpe.valueClazz, Seq())
   }
 
-  def genType(t: Type, retty: Boolean = false): nir.Type = {
+  def genType(t: Type, box: Boolean = false): nir.Type = {
     val (sym, args) = decomposeType(t)
 
-    genTypeSym(sym, args, retty)
+    genTypeSym(sym, args, box)
   }
 
   def genTypeSym(sym: Symbol,
                  targs: Seq[Type] = Seq(),
-                 retty: Boolean = false,
-                 boxUnsigned: Boolean = true): nir.Type = sym match {
-    case ArrayClass                  => genTypeSym(RuntimeArrayClass(genPrimCode(targs.head)))
-    case UnitClass | BoxedUnitClass  => nir.Type.Unit
-    case NothingClass                => nir.Type.Nothing
-    case NullClass                   => genTypeSym(RuntimeNullClass)
-    case ObjectClass                 => nir.Rt.Object
-    case CharClass                   => nir.Type.I16
-    case BooleanClass                => nir.Type.Bool
-    case ByteClass                   => nir.Type.I8
-    case UByteClass if !boxUnsigned  => nir.Type.I8
-    case ShortClass                  => nir.Type.I16
-    case UShortClass if !boxUnsigned => nir.Type.I16
-    case IntClass                    => nir.Type.I32
-    case UIntClass if !boxUnsigned   => nir.Type.I32
-    case LongClass                   => nir.Type.I64
-    case ULongClass if !boxUnsigned  => nir.Type.I64
-    case FloatClass                  => nir.Type.F32
-    case DoubleClass                 => nir.Type.F64
-    case PtrClass                    => nir.Type.Ptr
-    case _ if isStruct(sym)          => genStruct(sym)
-    case _ if isModule(sym)          => nir.Type.Module(genTypeName(sym))
-    case _ if sym.isInterface        => nir.Type.Trait(genTypeName(sym))
-    case _                           => nir.Type.Class(genTypeName(sym))
+                 box: Boolean = false): nir.Type = {
+    val ty = sym match {
+      case ObjectClass                => nir.Lib.Object
+      case UnitClass | BoxedUnitClass => nir.Type.Unit
+      case NothingClass               => nir.Type.Nothing
+      case NullClass                  => genTypeSym(RuntimeNullClass)
+      case ArrayClass                 => genTypeSym(RuntimeArrayClass(genPrimCode(targs.head)))
+
+      // boxed primitives
+      case CharClass if box    => nir.Lib.Character
+      case BooleanClass if box => nir.Lib.Boolean
+      case ByteClass if box    => nir.Lib.Byte
+      case ShortClass if box   => nir.Lib.Short
+      case IntClass if box     => nir.Lib.Integer
+      case FloatClass if box   => nir.Lib.Float
+      case LongClass if box    => nir.Lib.Long
+      case DoubleClass if box  => nir.Lib.Double
+
+      // unboxed primitives
+      case CharClass if !box    => nir.Type.I16
+      case BooleanClass if !box => nir.Type.Bool
+      case ByteClass if !box    => nir.Type.I8
+      case ShortClass if !box   => nir.Type.I16
+      case IntClass if !box     => nir.Type.I32
+      case LongClass if !box    => nir.Type.I64
+      case FloatClass if !box   => nir.Type.F32
+      case DoubleClass if !box  => nir.Type.F64
+
+      // native types
+      case UByteClass if !box  => nir.Type.I8
+      case UShortClass if !box => nir.Type.I16
+      case UIntClass if !box   => nir.Type.I32
+      case ULongClass if !box  => nir.Type.I64
+      case PtrClass            => nir.Type.Ptr
+
+      case _ if isStruct(sym)   => genStruct(sym)
+      case _ if isModule(sym)   => nir.Type.Module(genTypeName(sym))
+      case _ if sym.isInterface => nir.Type.Trait(genTypeName(sym))
+      case _                    => nir.Type.Class(genTypeName(sym))
+    }
+    ty
   }
 
   def genTypeValue(ty: Type): nir.Val = {

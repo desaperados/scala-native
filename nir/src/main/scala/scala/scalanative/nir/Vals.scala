@@ -24,7 +24,7 @@ sealed abstract class Val {
 
     case Val.Unit      => Type.Unit
     case Val.Const(_)  => Type.Ptr
-    case Val.String(_) => Rt.String
+    case Val.String(_) => Lib.String
   }
 }
 object Val {

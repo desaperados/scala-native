@@ -28,7 +28,7 @@ trait NirNameEncoding { self: NirCodeGen =>
       else fullName
     }
     val name = sym match {
-      case ObjectClass            => nir.Rt.Object.name
+      case ObjectClass            => nir.Lib.Object.name
       case _ if sym.isModule      => genTypeName(sym.moduleClass)
       case _ if sym.isModuleClass => nir.Global.Top(id + "$")
       case _                      => nir.Global.Top(id)

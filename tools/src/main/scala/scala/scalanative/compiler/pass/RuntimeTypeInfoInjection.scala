@@ -31,8 +31,8 @@ class RuntimeTypeInfoInjection(implicit top: Top, fresh: Fresh) extends Pass {
 
       val typeId   = Val.I32(node.id)
       val typeStr  = Val.String(node.name.id)
-      val typeVal  = Val.Struct(Rt.Type.name, Seq(typeId, typeStr))
-      val typeDefn = Defn.Const(Attrs.None, typeName(node), Rt.Type, typeVal)
+      val typeVal  = Val.Struct(Lib.Type.name, Seq(typeId, typeStr))
+      val typeDefn = Defn.Const(Attrs.None, typeName(node), Lib.Type, typeVal)
 
       Seq(defn, typeDefn)
   }
@@ -46,5 +46,5 @@ class RuntimeTypeInfoInjection(implicit top: Top, fresh: Fresh) extends Pass {
 object RuntimeTypeInfoInjection extends PassCompanion {
   def apply(ctx: Ctx) = new RuntimeTypeInfoInjection()(ctx.top, ctx.fresh)
 
-  override val depends = Seq(Rt.Type.name)
+  override val depends = Seq(Lib.Type.name)
 }

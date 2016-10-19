@@ -360,7 +360,7 @@ object ClassHierarchy {
         node.range = start to end
       }
 
-      loop(nodes(Rt.Object.name).asInstanceOf[Class])
+      loop(nodes(Lib.Object.name).asInstanceOf[Class])
     }
 
     def assignMethodIds(): Unit = {

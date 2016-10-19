@@ -1,6 +1,7 @@
-import scalanative.native._, stdlib._, stdio._
+import scalanative.native._
+import stdio._
 
-object Test {
+object App {
   def main(args: Array[String]): Unit = {
     println("Hello, world!")
   }

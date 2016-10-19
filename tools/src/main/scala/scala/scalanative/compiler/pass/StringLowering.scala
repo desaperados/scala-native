@@ -16,7 +16,7 @@ class StringLowering(implicit top: Top) extends Pass {
 
   /** Names of the fields of the java.lang.String in the memory layout order. */
   private val stringFieldNames = {
-    val node  = ClassRef.unapply(StringName).get
+    val node  = ClassRef.unapply(Lib.String.name).get
     val names = node.allfields.sortBy(_.index).map(_.name)
     assert(names.length == 4, "java.lang.String is expected to have 4 fields.")
     names
@@ -24,8 +24,8 @@ class StringLowering(implicit top: Top) extends Pass {
 
   override def preVal = {
     case Val.String(v) =>
-      val StringCls    = ClassRef.unapply(StringName).get
-      val CharArrayCls = ClassRef.unapply(CharArrayName).get
+      val StringCls    = ClassRef.unapply(Lib.String.name).get
+      val CharArrayCls = ClassRef.unapply(Lib.CharArray.name).get
 
       val chars       = v.toCharArray
       val charsLength = Val.I32(chars.length)
@@ -38,10 +38,10 @@ class StringLowering(implicit top: Top) extends Pass {
               Val.Array(Type.I16, chars.map(c => Val.I16(c.toShort))))))
 
       val fieldValues = stringFieldNames.map {
-        case StringValueName          => charsConst
-        case StringOffsetName         => Val.I32(0)
-        case StringCountName          => charsLength
-        case StringCachedHashCodeName => Val.I32(v.hashCode)
+        case Lib.StringValue          => charsConst
+        case Lib.StringOffset         => Val.I32(0)
+        case Lib.StringCount          => charsLength
+        case Lib.StringCachedHashCode => Val.I32(v.hashCode)
         case _                        => util.unreachable
       }
 
@@ -52,18 +52,10 @@ class StringLowering(implicit top: Top) extends Pass {
 object StringLowering extends PassCompanion {
   def apply(ctx: Ctx) = new StringLowering()(ctx.top)
 
-  val StringName               = Rt.String.name
-  val StringValueName          = StringName member "value" tag "field"
-  val StringOffsetName         = StringName member "offset" tag "field"
-  val StringCountName          = StringName member "count" tag "field"
-  val StringCachedHashCodeName = StringName member "cachedHashCode" tag "field"
-
-  val CharArrayName = Global.Top("scala.scalanative.runtime.CharArray")
-
-  override val depends = Seq(StringName,
-                             StringValueName,
-                             StringOffsetName,
-                             StringCountName,
-                             StringCachedHashCodeName,
-                             CharArrayName)
+  override val depends = Seq(Lib.String.name,
+                             Lib.StringValue,
+                             Lib.StringOffset,
+                             Lib.StringCount,
+                             Lib.StringCachedHashCode,
+                             Lib.CharArray.name)
 }
