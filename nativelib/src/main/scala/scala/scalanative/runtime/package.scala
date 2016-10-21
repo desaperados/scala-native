@@ -43,6 +43,19 @@ package object runtime {
   def select[T](cond: Boolean, thenp: T, elsep: T)(
       implicit ct: ClassTag[T]): T = undefined
 
+  /** Create a copy of the given object. */
+  def clone(obj: Ptr[_]): Ptr[_] = {
+    val ty   = getType(obj)
+    val size = getSize(obj)
+    val dup  = alloc(ty, size)
+    `llvm.memcpy.p0i8.p0i8.i64`(dup.cast[Ptr[Byte]],
+                                obj.cast[Ptr[Byte]],
+                                size,
+                                1,
+                                false)
+    dup
+  }
+
   /** Allocate memory in gc heap using given info pointer. */
   def alloc(ty: Ptr[Type], size: CSize): Ptr[_] = {
     val ptr = GC.malloc(size).cast[Ptr[Ptr[Type]]]
@@ -64,6 +77,9 @@ package object runtime {
 
   /** Read type information of given object. */
   def getType(obj: Object): Ptr[Type] = !obj.cast[Ptr[Ptr[Type]]]
+
+  /** Get the size of the given object. */
+  def getSize(obj: Object): CSize = ???
 
   /** Get monitor for given object. */
   def getMonitor(obj: Object): Monitor = Monitor.dummy

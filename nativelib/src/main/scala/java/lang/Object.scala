@@ -31,7 +31,12 @@ class _Object {
   def _wait(timeout: scala.Long, nanos: Int): Unit =
     runtime.getMonitor(this)._wait(timeout, nanos)
 
-  protected def _clone(): _Object = ???
+  protected def _clone(): _Object =
+    if (!this.isInstanceOf[java.lang.Cloneable]) {
+      throw new CloneNotSupportedException
+    } else {
+      runtime.clone(this.cast[Ptr[_]]).cast[_Object]
+    }
 
   protected def _finalize(): Unit = ()
 }
